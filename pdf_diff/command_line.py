@@ -13,10 +13,11 @@ if sys.version_info[0] < 3:
     sys.exit("ERROR: Python version 3+ is required.")
 
 
-def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
+
+def compute_changes(pdf_fn_1, pdf_fn_2, **kwargs):
     # Serialize the text in the two PDFs.
-    docs = [serialize_pdf(0, pdf_fn_1, top_margin, bottom_margin), serialize_pdf(
-        1, pdf_fn_2, top_margin, bottom_margin)]
+    docs = [serialize_pdf(0, pdf_fn_1,  **kwargs),
+            serialize_pdf(1, pdf_fn_2,  **kwargs)]
 
     # Compute differences between the serialized text.
     diff = perform_diff(docs[0][1], docs[1][1])
@@ -25,8 +26,8 @@ def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
     return changes
 
 
-def serialize_pdf(i, fn, top_margin, bottom_margin):
-    box_generator = pdf_to_bboxes(i, fn, top_margin, bottom_margin)
+def serialize_pdf(i, fn, **kwargs):
+    box_generator = pdf_to_bboxes(i, fn, **kwargs)
     box_generator = mark_eol_hyphens(box_generator)
 
     boxes = []
@@ -60,7 +61,8 @@ def serialize_pdf(i, fn, top_margin, bottom_margin):
     return boxes, text
 
 
-def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
+def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100,
+                  page_start=None, page_end=None):
     # Get the bounding boxes of text runs in the PDF.
     # Each text run is returned as a dict.
     box_index = 0
@@ -73,14 +75,19 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
     # This avoids PCDATA errors
     codes_to_avoid = [0, 1, 2, 3, 4, 5, 6, 7, 8,
                       11, 12,
-                      14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, ]
+                      14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+                      26, 27, 28, 29, 30, 31, ]
 
     cleaned_xml = bytes([x for x in xml if x not in codes_to_avoid])
 
     dom = etree.fromstring(cleaned_xml)
-    for i, page in enumerate(dom.findall(".//{http://www.w3.org/1999/xhtml}page")):
+    for page_num, page in enumerate(dom.findall(".//{http://www.w3.org/1999/xhtml}page"), 1):
+        if page_start is not None and page_num < page_start:
+            continue
+        if page_end is not None and page_num > page_end:
+            break
         pagedict = {
-            "number": i+1,
+            "number": page_num,
             "width": float(page.get("width")),
             "height": float(page.get("height"))
         }
