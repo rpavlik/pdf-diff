@@ -60,15 +60,8 @@ def serialize_pdf(i, fn, **kwargs):
     return boxes, text
 
 
-def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100,
-                  page_start=None, page_end=None):
-    # Get the bounding boxes of text runs in the PDF.
-    # Each text run is returned as a dict.
-    box_index = 0
-    pdfdict = {
-        "index": pdf_index,
-        "file": fn,
-    }
+def pdf_to_dom(fn):
+    """Parse the output of pdftotext into an ElementTree."""
     xml = subprocess.check_output(["pdftotext", "-bbox", fn, "/dev/stdout"])
 
     # This avoids PCDATA errors
@@ -79,7 +72,23 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100,
 
     cleaned_xml = bytes([x for x in xml if x not in codes_to_avoid])
 
-    dom = etree.fromstring(cleaned_xml)
+    return etree.fromstring(cleaned_xml)
+
+
+def pdf_to_bboxes(pdf_index, fn, dom=None, top_margin=0, bottom_margin=100,
+                  page_start=None, page_end=None,
+                  page_start_top=None, page_end_bottom=None):
+    # Get the bounding boxes of text runs in the PDF.
+    # Each text run is returned as a dict.
+    box_index = 0
+    pdfdict = {
+        "index": pdf_index,
+        "file": fn,
+    }
+
+    if dom is None:
+        dom = pdf_to_dom(fn)
+
     for page_num, page in enumerate(dom.findall(".//{http://www.w3.org/1999/xhtml}page"), 1):
         if page_start is not None and page_num < page_start:
             continue
