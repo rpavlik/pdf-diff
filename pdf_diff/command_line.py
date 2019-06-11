@@ -156,11 +156,25 @@ def mark_eol_hyphen(box):
 
 def perform_diff(doc1text, doc2text):
     import diff_match_patch
-    return diff_match_patch.diff(
-        doc1text,
-        doc2text,
-        timelimit=0,
-        checklines=False)
+
+    # Support two different diff_match_patch modules
+    try:
+        # https://pypi.org/project/diff_match_patch_python/
+        diff = diff_match_patch.diff(
+            doc1text,
+            doc2text,
+            timelimit=0,
+            checklines=False)
+    except AttributeError:
+        # https://pypi.org/project/diff-match-patch/
+        dmp = diff_match_patch.diff_match_patch()
+        diff = dmp.diff_main(doc1text,
+                             doc2text)
+        dmp.diff_cleanupSemantic(diff)
+
+    # from pprint import pprint
+    # pprint(diff)
+    return diff
 
 
 def process_hunks(hunks, boxes):
@@ -168,8 +182,15 @@ def process_hunks(hunks, boxes):
     # text boxes in the original PDFs.
     offsets = [0, 0]
     changes = []
-    for op, oplen in hunks:
-        if op == "=":
+
+    # for diff-match-patch: first element is -1, 0, or 1, second is the text
+    # for diff_match_patch_python: first element is -, =, or +, second is length
+    for op, opdata in hunks:
+        if isinstance(opdata, str):
+            oplen = len(opdata)
+        else:
+            oplen = opdata
+        if op == "=" or op == 0:
             # This hunk represents a region in the two text documents that are
             # in common. So nothing to process but advance the counters.
             offsets[0] += oplen
@@ -180,10 +201,10 @@ def process_hunks(hunks, boxes):
             if len(changes) > 0 and changes[-1] != '*':
                 changes.append("*")
 
-        elif op in ("-", "+"):
+        elif op in ("-", "+", -1, 1):
             # This hunk represents a region of text only in the left (op == "-")
             # or right (op == "+") document. The change is oplen chars long.
-            idx = 0 if (op == "-") else 1
+            idx = 0 if (op == "-" or op == -1) else 1
 
             mark_difference(oplen, offsets[idx], boxes[idx], changes)
 
