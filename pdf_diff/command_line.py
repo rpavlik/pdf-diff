@@ -13,11 +13,10 @@ if sys.version_info[0] < 3:
     sys.exit("ERROR: Python version 3+ is required.")
 
 
-
-def compute_changes(pdf_fn_1, pdf_fn_2, **kwargs):
+def compute_changes(pdf1_opts, pdf2_opts, **kwargs):
     # Serialize the text in the two PDFs.
-    docs = [serialize_pdf(0, pdf_fn_1,  **kwargs),
-            serialize_pdf(1, pdf_fn_2,  **kwargs)]
+    docs = [serialize_pdf(0, **pdf1_opts),
+            serialize_pdf(1, **pdf2_opts)]
 
     # Compute differences between the serialized text.
     diff = perform_diff(docs[0][1], docs[1][1])
@@ -547,8 +546,19 @@ def main():
         invalid_usage(
             'Insufficient number of files to compare; please supply exactly 2.')
 
-    changes = compute_changes(args.files[0], args.files[1], top_margin=float(
-        args.top_margin), bottom_margin=float(args.bottom_margin))
+    changes = compute_changes(
+        {
+            'fn': args.files[0],
+            # 'page_start': 2,
+            # 'page_end': 10,
+        },
+        {
+            'fn': args.files[1],
+            # 'page_start': 2,
+            # 'page_end': 10,
+        },
+        top_margin=float(args.top_margin),
+        bottom_margin=float(args.bottom_margin))
     img = render_changes(changes, style, args.result_width)
     img.save(sys.stdout.buffer, args.format.upper())
 
