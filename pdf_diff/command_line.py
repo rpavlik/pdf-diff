@@ -99,10 +99,22 @@ def pdf_to_bboxes(pdf_index, fn, dom=None, top_margin=0, bottom_margin=100,
             "width": float(page.get("width")),
             "height": float(page.get("height"))
         }
+        y_min = (top_margin/100.0)*float(page.get("height"))
+        y_max = (bottom_margin/100.0)*float(page.get("height"))
+        if (page_start_top is not None) \
+            and (page_start is not None) \
+                and (page_start == page_num):
+            # This is the first page we processed: use the alterate top.
+            y_min = max(y_min, page_start_top)
+        if (page_end_bottom is not None) \
+            and (page_end is not None) \
+                and (page_end == page_num):
+            # This is the last page we process: use the alterate bottom.
+            y_max = min(y_max, page_end_bottom)
         for word in page.findall("{http://www.w3.org/1999/xhtml}word"):
-            if float(word.get("yMax")) < (top_margin/100.0)*float(page.get("height")):
+            if float(word.get("yMax")) < y_min:
                 continue
-            if float(word.get("yMin")) > (bottom_margin/100.0)*float(page.get("height")):
+            if float(word.get("yMin")) > y_max:
                 continue
 
             yield {
