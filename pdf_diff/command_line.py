@@ -15,8 +15,8 @@ if sys.version_info[0] < 3:
 
 def compute_changes(pdf1_opts, pdf2_opts, **kwargs):
     # Serialize the text in the two PDFs.
-    docs = [serialize_pdf(0, **pdf1_opts),
-            serialize_pdf(1, **pdf2_opts)]
+    docs = [serialize_pdf(0, **pdf1_opts, **kwargs),
+            serialize_pdf(1, **pdf2_opts, **kwargs)]
 
     # Compute differences between the serialized text.
     diff = perform_diff(docs[0][1], docs[1][1])
