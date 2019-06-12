@@ -233,11 +233,12 @@ def process_hunks(hunks, boxes):
     return changes
 
 
-def box_end_index(box):
+def box_end_index(box, hunk_length):
     box_end = box["startIndex"] + box["textLength"]
     # Don't use a trailing space in a box that got picked up
     # in the diff to say that whole box got touched.
-    if box['text'].endswith(' '):
+    # The exception is for the 1-length placeholders
+    if hunk_length != 1 and box['text'].endswith(' '):
         box_end -= 1
     return box_end
 
@@ -248,7 +249,7 @@ def mark_difference(hunk_length, offset, boxes, changes):
     # in boxes as having changed content.
 
     # Discard boxes whose text is entirely before this hunk
-    while len(boxes) > 0 and box_end_index(boxes[0]) <= offset:
+    while len(boxes) > 0 and box_end_index(boxes[0], hunk_length) <= offset:
         boxes.pop(0)
 
     hunk_end = offset + hunk_length
