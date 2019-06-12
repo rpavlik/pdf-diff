@@ -504,6 +504,42 @@ def stack_pages(page_groups):
     return img
 
 
+def merge_boxes_if_possible(a, b):
+    """Combine b into a if a and b appear to be sequential words and
+    return True."""
+    # Need same PDF
+    if a['pdf'] != b['pdf']:
+        return False
+    # Need same page
+    if a['page'] != b['page']:
+        return False
+    # Need sequential boxes (since we do this after diffing)
+    if a['index'] + 1 != b['index']:
+        return False
+    a_min_y = a['y']
+    a_max_y = a['y'] + a['height']
+    b_min_y = b['y']
+    b_max_y = b['y'] + b['height']
+
+    overlap_min_y = max(a_min_y, b_min_y)
+    overlap_max_y = min(a_max_y, b_max_y)
+
+    # If the new box lies vertically mostly within the old box, combine them
+    overlap_ratio = (overlap_max_y - overlap_min_y) / b['height']
+    if overlap_ratio > 0.7:
+        # expand width
+        a['width'] = b['x'] + b['width'] - a['x']
+        # expand y and height
+        a['y'] = min(a_min_y, b_min_y)
+        a['height'] = max(a_max_y, b_max_y) - a['y']
+        # combine text
+        a["text"] += b["text"]
+        # so that in the next iteration we can expand it again
+        a["index"] += 1
+        return True
+    return False
+
+
 def simplify_changes(boxes):
     # Combine changed boxes when they were sequential in the input.
     # Our bounding boxes may be on a word-by-word basis, which means
@@ -511,17 +547,9 @@ def simplify_changes(boxes):
     # though they are probably the same semantic change.
     changes = []
     for b in boxes:
-        if len(changes) > 0 and changes[-1] != "*" and b != "*" \
-                and changes[-1]["pdf"] == b["pdf"] \
-                and changes[-1]["page"] == b["page"] \
-                and changes[-1]["index"]+1 == b["index"] \
-                and changes[-1]["y"] == b["y"] \
-                and changes[-1]["height"] == b["height"]:
-            changes[-1]["width"] = b["x"]+b["width"] - changes[-1]["x"]
-            changes[-1]["text"] += b["text"]
-            # so that in the next iteration we can expand it again
-            changes[-1]["index"] += 1
-            continue
+        if len(changes) > 0 and changes[-1] != "*" and b != "*":
+            if merge_boxes_if_possible(changes[-1], b):
+                continue
         changes.append(b)
     return changes
 
