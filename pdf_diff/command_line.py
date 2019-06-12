@@ -266,10 +266,12 @@ def render_changes(changes, styles, width):
         if change == "*":
             continue
         im = pages[change["pdf"]["index"]][change["page"]["number"]]
-        change["x"] *= im.size[0]/change["page"]["width"]
-        change["y"] *= im.size[1]/change["page"]["height"]
-        change["width"] *= im.size[0]/change["page"]["width"]
-        change["height"] *= im.size[1]/change["page"]["height"]
+        x_scale = im.size[0]/change["page"]["width"]
+        y_scale = im.size[1]/change["page"]["height"]
+        change["x"] *= x_scale
+        change["y"] *= y_scale
+        change["width"] *= x_scale
+        change["height"] *= y_scale
         change["page"] = change["page"]["number"]
 
     # To facilitate seeing how two corresponding pages align, we will
