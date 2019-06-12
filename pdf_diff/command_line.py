@@ -177,6 +177,12 @@ def perform_diff(doc1text, doc2text):
     return diff
 
 
+NO_CHANGE_OP = set(("=", 0))
+LEFT_REMOVAL_OP = set(("-", -1))
+RIGHT_ADDITION_OP = set(("+", 1))
+REMOVAL_OR_ADDITION_OP = LEFT_REMOVAL_OP.union(RIGHT_ADDITION_OP)
+
+
 def process_hunks(hunks, boxes):
     # Process each diff hunk one by one and look at their corresponding
     # text boxes in the original PDFs.
@@ -190,7 +196,7 @@ def process_hunks(hunks, boxes):
             oplen = len(opdata)
         else:
             oplen = opdata
-        if op == "=" or op == 0:
+        if op in NO_CHANGE_OP:
             # This hunk represents a region in the two text documents that are
             # in common. So nothing to process but advance the counters.
             offsets[0] += oplen
@@ -201,11 +207,10 @@ def process_hunks(hunks, boxes):
             if len(changes) > 0 and changes[-1] != '*':
                 changes.append("*")
 
-        elif op in ("-", "+", -1, 1):
+        elif op in REMOVAL_OR_ADDITION_OP:
             # This hunk represents a region of text only in the left (op == "-")
             # or right (op == "+") document. The change is oplen chars long.
-            idx = 0 if (op == "-" or op == -1) else 1
-
+            idx = 0 if (op in LEFT_REMOVAL_OP) else 1
             mark_difference(oplen, offsets[idx], boxes[idx], changes)
 
             offsets[idx] += oplen
