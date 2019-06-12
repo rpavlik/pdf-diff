@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import attr
 import io
 import json
 import os
@@ -509,6 +510,55 @@ def stack_pages(page_groups):
     return img
 
 
+@attr.s
+class Bounds:
+    min_x = attr.ib()
+    max_x = attr.ib()
+    min_y = attr.ib()
+    max_y = attr.ib()
+
+    @staticmethod
+    def from_box(box):
+        x = box['x']
+        y = box['y']
+        return Bounds(
+            min_x=x,
+            max_x=x + box['width'],
+            min_y=y,
+            max_y=y + box['height'],
+        )
+
+    @property
+    def height(self):
+        return self.max_y - self.min_y
+
+    @property
+    def width(self):
+        return self.max_x - self.min_x
+
+    def expand_to_include(self, other):
+        self.min_x = min(self.min_x, other.min_x)
+        self.min_y = min(self.min_y, other.min_y)
+        self.max_x = max(self.max_x, other.max_x)
+        self.max_y = max(self.max_y, other.max_y)
+
+    def same_line_as(self, other):
+        overlap_min_y = max(self.min_y, other.min_y)
+        overlap_max_y = min(self.max_y, other.max_y)
+        # If this box lies vertically mostly within the other box,
+        # call it the same line.
+        ratio = (overlap_max_y - overlap_min_y) / self.height
+        return ratio > 0.7  # arbitrary cutoff
+
+    def to_box(self):
+        return {
+            'x': self.min_x,
+            'width': self.width,
+            'y': self.min_y,
+            'height': self.max_y,
+        }
+
+
 def merge_boxes_if_possible(a, b):
     """Combine b into a if a and b appear to be sequential words and
     return True."""
@@ -521,22 +571,14 @@ def merge_boxes_if_possible(a, b):
     # Need sequential boxes (since we do this after diffing)
     if a['index'] + 1 != b['index']:
         return False
-    a_min_y = a['y']
-    a_max_y = a['y'] + a['height']
-    b_min_y = b['y']
-    b_max_y = b['y'] + b['height']
-
-    overlap_min_y = max(a_min_y, b_min_y)
-    overlap_max_y = min(a_max_y, b_max_y)
+    a_bounds = Bounds.from_box(a)
+    b_bounds = Bounds.from_box(b)
 
     # If the new box lies vertically mostly within the old box, combine them
-    overlap_ratio = (overlap_max_y - overlap_min_y) / b['height']
-    if overlap_ratio > 0.7:
-        # expand width
-        a['width'] = b['x'] + b['width'] - a['x']
-        # expand y and height
-        a['y'] = min(a_min_y, b_min_y)
-        a['height'] = max(a_max_y, b_max_y) - a['y']
+    if b_bounds.same_line_as(a_bounds):
+        a_bounds.expand_to_include(b_bounds)
+        # update box bounds
+        a.update(a_bounds.to_box())
         # combine text
         a["text"] += b["text"]
         # so that in the next iteration we can expand it again
