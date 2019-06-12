@@ -434,7 +434,7 @@ def zealous_crop(page_groups):
                 maxx = max(bbox[2], maxx) if maxx is not None else bbox[2]
                 width = max(
                     width, pdf.size[0]) if width is not None else pdf.size[0]
-        if width != None:
+        if width is not None:
             minx = max(0, minx-int(.02*width))  # add back some margins
             maxx = min(width, maxx+int(.02*width))
             # do crop
