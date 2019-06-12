@@ -233,19 +233,29 @@ def process_hunks(hunks, boxes):
     return changes
 
 
+def box_end_index(box):
+    box_end = box["startIndex"] + box["textLength"]
+    # Don't use a trailing space in a box that got picked up
+    # in the diff to say that whole box got touched.
+    if box['text'].endswith(' '):
+        box_end -= 1
+    return box_end
+
+
 def mark_difference(hunk_length, offset, boxes, changes):
     # We're passed an offset and length into a document given to us
     # by the text comparison, and we'll mark the text boxes passed
     # in boxes as having changed content.
 
     # Discard boxes whose text is entirely before this hunk
-    while len(boxes) > 0 and (boxes[0]["startIndex"] + boxes[0]["textLength"]) <= offset:
+    while len(boxes) > 0 and box_end_index(boxes[0]) <= offset:
         boxes.pop(0)
 
+    hunk_end = offset + hunk_length
     # Process the boxes that intersect this hunk. We can't subdivide boxes,
     # so even though not all of the text in the box might be changed we'll
     # mark the whole box as changed.
-    while len(boxes) > 0 and boxes[0]["startIndex"] < offset + hunk_length:
+    while len(boxes) > 0 and boxes[0]["startIndex"] < hunk_end:
         # Mark this box as changed. Discard the box. Now that we know it's changed,
         # there's no reason to hold onto it. It can't be marked as changed twice.
         changes.append(boxes.pop(0))
